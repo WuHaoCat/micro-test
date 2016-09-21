@@ -1,0 +1,13 @@
+gpustarttimestamp
+gpuendtimestamp
+fb_subp1_read_sectors
+fb_subp1_write_sectors
+warps_launched
+inst_issued0
+inst_issued1
+inst_issued2
+shared_ld_transactions
+shared_st_transactions
+l2_subp0_read_sysmem_sector_queries
+l2_subp0_write_sysmem_sector_queries
+streamid

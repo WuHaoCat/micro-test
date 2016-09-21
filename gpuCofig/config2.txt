@@ -1,0 +1,13 @@
+gpustarttimestamp
+gpuendtimestamp
+tex0_cache_sector_misses
+tex1_cache_sector_misses
+fb_subp0_read_sectors
+fb_subp0_write_sectors
+shared_load
+shared_store
+shared_atom_cas
+shared_atom
+l2_subp0_read_tex_hit_sectors
+l2_subp0_write_tex_hit_sectors
+streamid

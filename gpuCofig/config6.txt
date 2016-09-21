@@ -1,0 +1,6 @@
+gpustarttimestamp
+gpuendtimestamp
+l2_subp1_read_tex_hit_sectors
+l2_subp1_write_tex_hit_sectors
+streamid
+

@@ -1,0 +1,6 @@
+gpustarttimestamp
+gpuendtimestamp
+l2_subp1_read_sysmem_sector_queries
+l2_subp1_write_sysmem_sector_queries
+streamid
+

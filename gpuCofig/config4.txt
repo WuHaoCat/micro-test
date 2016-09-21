@@ -1,0 +1,9 @@
+gpustarttimestamp
+gpuendtimestamp
+gred_count
+divergent_branch
+branch
+l2_subp0_total_read_sector_queries
+l2_subp0_total_write_sector_queries
+streamid
+
