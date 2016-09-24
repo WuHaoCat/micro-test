@@ -9,6 +9,7 @@
 #include <cstring>
 #include <math.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #pragma cl_nv_compiler_options
 
@@ -39,16 +40,16 @@ int getProgramBuildInfo(cl_program program){
     else cout<<"Log file:"<<endl;
     printf("%s\n", program_log);
     free(program_log);
-    cout<<"*****Print the Build Log End*****"<<endl;
+     //cout<<"*****Print the Build Log End*****"<<endl;
     //Query binary PTX file size
-    ret = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &log_size, NULL);
+    /*ret = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &log_size, NULL);
     if (ret != CL_SUCCESS) cout<<"Get PTX Code Size Faild"<<endl;
     else cout<<"PTX Code Len = "<<log_size<<endl;
     program_log = (char*) malloc(log_size+1);
     ret = clGetProgramInfo(program, CL_PROGRAM_BINARIES, sizeof(unsigned char *), &program_log, NULL);
     if (ret != CL_SUCCESS) cout<<"Get PTX Code Faild"<<endl;
     printf("The PTX CODE:\n%s\n", program_log);
-    free(program_log);
+    free(program_log);*/
     return 0;
 }
 int convertToString(const char *filename, std::string& s){
@@ -199,7 +200,7 @@ cl_program buildProgram(const char* filename){
 	cl_program program = clCreateProgramWithSource(context, 1, &source, sourceSize, NULL);
 	status=clBuildProgram(program,1,&device,"-cl-nv-verbose",NULL,NULL);
 	ckEr(status, __LINE__);
-	getProgramBuildInfo(program);
+	//getProgramBuildInfo(program);
 	return program;
 }
 
@@ -216,21 +217,25 @@ void getKernelName(int num){
 int main(int argc,char *argv[]){
 
 	cout<<"-------------------------------------------------------------"<<endl;
-	cout<<"-----------------WLP ILP Architecture Test-------------------"<<endl;
+	cout<<"--------------------Register Architecture Test-----------------------"<<endl;
 	cout<<"-------------------------------------------------------------"<<endl;
     
     int kerNum1 = atoi(argv[1]);
     int kerNum2 = atoi(argv[2]);
     int kerSize = atoi(argv[3]);
     int parallel = atoi(argv[4]);
-    cout<<kerNum1<<","<<kerNum2<<","<<kerSize<<","<<parallel<<endl;
+	int memCompRatio = atoi(argv[5]);
+    cout<<kerNum1<<","<<kerNum2<<","<<kerSize<<","<<parallel<<","<<memCompRatio<<endl;
+	int msize2=32*(9-kerSize);
     int msize = 32*kerSize;
+	int threadNum2 = msize2*64;
     int threadNum = msize*64;
-    int arraySize = 800000+threadNum;
+	
+    int arraySize = memCompRatio*100000+threadNum2;
 
     float* arr = new float[arraySize];
     float* re_arr = new float[threadNum];
-    float* re_arr_2 = new float[threadNum];
+    float* re_arr_2 = new float[threadNum2];
     for (int i = 0; i < arraySize; i++){
     	arr[i] = i/100.0;
     }
@@ -238,7 +243,10 @@ int main(int argc,char *argv[]){
     choosePlatform();
     chooseDevice();
 
-    cl_program program = buildProgram("mem2.cl");
+	char clFileName[50];
+	sprintf(clFileName, "mem%d.cl", memCompRatio);
+    printf("CL file name: %s\n", clFileName);
+    cl_program program = buildProgram(clFileName);
     
     cl_int status;
     cl_command_queue cmdQueue;
@@ -268,7 +276,7 @@ int main(int argc,char *argv[]){
 
     cl_mem input_2 = clCreateBuffer(context,  CL_MEM_READ_ONLY, arraySize*sizeof(cl_float), NULL, &status);
     ckEr(status, __LINE__);
-    cl_mem output_2 = clCreateBuffer(context, CL_MEM_READ_WRITE, threadNum*sizeof(cl_float), NULL, &status);
+    cl_mem output_2 = clCreateBuffer(context, CL_MEM_READ_WRITE, threadNum2*sizeof(cl_float), NULL, &status);
     ckEr(status, __LINE__);
     //Data Transfer
     status = clEnqueueWriteBuffer(cmdQueue_2, input_2, CL_TRUE, 0, arraySize*sizeof(cl_float), arr, 0, NULL, NULL);
@@ -277,6 +285,8 @@ int main(int argc,char *argv[]){
 
 	size_t global[1] = {msize*64};
 	size_t local[1] = {msize};
+	size_t global2[1] = {msize2*64};
+	size_t local2[1] = {msize2};
 
     // Set the arguments to our compute kernel
     status = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input);
@@ -303,13 +313,13 @@ int main(int argc,char *argv[]){
     if (parallel > 0){
     	status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, global, local, 0, NULL, &event1);
     	ckEr(status, __LINE__);
-        status = clEnqueueNDRangeKernel(cmdQueue_2, kernel_2, 1, NULL, global, local, 0, NULL, &event2);
+        status = clEnqueueNDRangeKernel(cmdQueue_2, kernel_2, 1, NULL, global2, local2, 0, NULL, &event2);
         ckEr(status, __LINE__);
     }else {
         status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, global, local, 0, NULL, &event1);
         ckEr(status, __LINE__);
         //cout<<"Kernel Run 1!"<<endl;
-        status = clEnqueueNDRangeKernel(cmdQueue_2, kernel_2, 1, NULL, global, local, 1, &event1, &event2);
+        status = clEnqueueNDRangeKernel(cmdQueue_2, kernel_2, 1, NULL, global2, local2, 1, &event1, &event2);
         ckEr(status, __LINE__);
         //cout<<"Kernel Run 2!"<<endl;
     }
@@ -323,7 +333,7 @@ int main(int argc,char *argv[]){
     ckEr(status, __LINE__);
     status = clFinish(cmdQueue);
     ckEr(status, __LINE__);
-    status = clEnqueueReadBuffer(cmdQueue_2, output_2, CL_TRUE, 0, threadNum*sizeof(cl_float), re_arr_2, 0, NULL, NULL);
+    status = clEnqueueReadBuffer(cmdQueue_2, output_2, CL_TRUE, 0, threadNum2*sizeof(cl_float), re_arr_2, 0, NULL, NULL);
     ckEr(status, __LINE__);
     status = clFinish(cmdQueue_2);
     ckEr(status, __LINE__);
@@ -352,7 +362,7 @@ int main(int argc,char *argv[]){
     end1 -= earliest;
     end2 -= earliest;
     char outputFileName[50];
-    sprintf(outputFileName, "memTest_%d_%d.txt", kerNum1, kerNum2);
+    sprintf(outputFileName, "memTest_%d_%d_%d.txt", memCompRatio, kerNum1, kerNum2);
     std::fstream f(outputFileName, (std::fstream::out | std::fstream::binary| std::fstream::app));
     if(!f.is_open())
     {
@@ -374,5 +384,6 @@ int main(int argc,char *argv[]){
     clReleaseCommandQueue(cmdQueue_2);
     delete re_arr_2;
 	
+	sleep(4);
 	return 0;
 }
